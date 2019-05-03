@@ -6,8 +6,8 @@ B=imag(Y);%imaginary part of Y
 %initial guess
 % x=[.01*randn(1,n-1),ones(1,n)+.03*randn(1,n)];
 % x=[zeros(1,n-1),ones(1,n)];
-x=[[-2*pi/3,-4*pi/3,repmat([0,-2*pi/3,-4*pi/3],1,n/3-1)],ones(1,n)];
-% x=[angle(Vtrue(2:end)),abs(Vtrue)]; %for testing the accuracy with correct solution as starting point
+% x=[[-2*pi/3,-4*pi/3,repmat([0,-2*pi/3,-4*pi/3],1,n/3-1)],ones(1,n)];
+x=[angle(Vtrue(2:end)),abs(Vtrue)]; %for testing the accuracy with correct solution as starting point
 for k=1:iter_max
     V=x(n:end);%voltage magnitudes
     Th=[0,x(1:n-1)];%voltage angles (Theta(1)=0 reference)
@@ -40,10 +40,38 @@ for k=1:iter_max
         elseif zType(m,1)==6 %Theta Vi
             i=zType(m,2);
             h(m)=Th(i);
-        elseif zType(m,1)==7 %|Iij|
-            i=zType(m,2);
-            j=zType(m,3);
-            h(m)=sqrt((G(i,j)^2+B(i,j)^2)*(V(i)^2+V(j)^2-2*V(i)*V(j)*cos(Th(i)-Th(j))));
+        elseif zType(m,1)==7 %real Iij
+            i=zType(m,2);%sending end
+            j=zType(m,3);%receiving end
+            ph=zType(m,4);%phase
+            a1=3*(i-1)+1;
+            b1=3*(i-1)+2;
+            c1=3*(i-1)+3;
+            a2=3*(j-1)+1;
+            b2=3*(j-1)+2;
+            c2=3*(j-1)+3;
+            y=-Y([a1,b1,c1],[a2,b2,c2]);
+            g=real(y);
+            b=imag(y);
+            h(m)=g(ph,1)*(V(a1)*cos(Th(a1))-V(a2)*cos(Th(a2)))-b(ph,1)*(V(a1)*sin(Th(a1))-V(a2)*sin(Th(a2)))+...
+                 g(ph,2)*(V(b1)*cos(Th(b1))-V(b2)*cos(Th(b2)))-b(ph,2)*(V(b1)*sin(Th(b1))-V(b2)*sin(Th(b2)))+...
+                 g(ph,3)*(V(c1)*cos(Th(c1))-V(c2)*cos(Th(c2)))-b(ph,3)*(V(c1)*sin(Th(c1))-V(c2)*sin(Th(c2))); 
+        elseif zType(m,1)==8 %imag Iij
+            i=zType(m,2);%sending end
+            j=zType(m,3);%receiving end
+            ph=zType(m,4);%phase
+            a1=3*(i-1)+1;
+            b1=3*(i-1)+2;
+            c1=3*(i-1)+3;
+            a2=3*(j-1)+1;
+            b2=3*(j-1)+2;
+            c2=3*(j-1)+3;
+            y=-Y([a1,b1,c1],[a2,b2,c2]);
+            g=real(y);
+            b=imag(y);
+            h(m)=g(ph,1)*(V(a1)*sin(Th(a1))-V(a2)*sin(Th(a2)))+b(ph,1)*(V(a1)*cos(Th(a1))-V(a2)*cos(Th(a2)))+...
+                 g(ph,2)*(V(b1)*sin(Th(b1))-V(b2)*sin(Th(b2)))+b(ph,2)*(V(b1)*cos(Th(b1))-V(b2)*cos(Th(b2)))+...
+                 g(ph,3)*(V(c1)*sin(Th(c1))-V(c2)*sin(Th(c2)))+b(ph,3)*(V(c1)*cos(Th(c1))-V(c2)*cos(Th(c2)));
         end
     end
 
@@ -119,17 +147,65 @@ for k=1:iter_max
         elseif zType(m,1)==6 %Theta Vi
             i=zType(m,2);
             H(m,i-1)=1;
-        elseif zType(m,1)==7 %|Iij|
+        elseif zType(m,1)==7 %real Iij
             i=zType(m,2);
             j=zType(m,3);
-            if i>1
-                H(m,i-1)=(G(i,j)^2+B(i,j)^2)*V(i)*V(j)*sin(Th(i)-Th(j))/h(m);
+            ph=zType(m,4);%phase
+            a1=3*(i-1)+1;
+            b1=3*(i-1)+2;
+            c1=3*(i-1)+3;
+            a2=3*(j-1)+1;
+            b2=3*(j-1)+2;
+            c2=3*(j-1)+3;
+            y=-Y([a1,b1,c1],[a2,b2,c2]);
+            g=real(y);
+            b=imag(y);
+            %angles
+            if a1>1
+                H(m,a1-1)=-g(ph,1)*V(a1)*sin(Th(a1))-b(ph,1)*V(a1)*cos(Th(a1));
             end
-            if j>1
-                H(m,j-1)=-(G(i,j)^2+B(i,j)^2)*V(i)*V(j)*sin(Th(i)-Th(j))/h(m);
+            H(m,b1-1)=-g(ph,2)*V(b1)*sin(Th(b1))-b(ph,2)*V(b1)*cos(Th(b1));
+            H(m,c1-1)=-g(ph,3)*V(c1)*sin(Th(c1))-b(ph,3)*V(c1)*cos(Th(c1));
+            H(m,a2-1)= g(ph,1)*V(a2)*sin(Th(a2))+b(ph,1)*V(a2)*cos(Th(a2));
+            H(m,b2-1)= g(ph,2)*V(b2)*sin(Th(b2))+b(ph,2)*V(b2)*cos(Th(b2));
+            H(m,c2-1)= g(ph,3)*V(c2)*sin(Th(c2))+b(ph,3)*V(c2)*cos(Th(c2));
+            %magnitudes
+            H(m,a1+n-1)= g(ph,1)*cos(Th(a1))-b(ph,1)*sin(Th(a1));
+            H(m,b1+n-1)= g(ph,2)*cos(Th(b1))-b(ph,2)*sin(Th(b1));
+            H(m,c1+n-1)= g(ph,3)*cos(Th(c1))-b(ph,3)*sin(Th(c1));
+            H(m,a2+n-1)=-g(ph,1)*cos(Th(a2))+b(ph,1)*sin(Th(a2));
+            H(m,b2+n-1)=-g(ph,2)*cos(Th(b2))+b(ph,2)*sin(Th(b2));
+            H(m,c2+n-1)=-g(ph,3)*cos(Th(c2))+b(ph,3)*sin(Th(c2));
+            
+        elseif zType(m,1)==8 %imag Iij
+            i=zType(m,2);
+            j=zType(m,3);
+            ph=zType(m,4);%phase
+            a1=3*(i-1)+1;
+            b1=3*(i-1)+2;
+            c1=3*(i-1)+3;
+            a2=3*(j-1)+1;
+            b2=3*(j-1)+2;
+            c2=3*(j-1)+3;
+            y=-Y([a1,b1,c1],[a2,b2,c2]);
+            g=real(y);
+            b=imag(y);
+            %angles
+            if a1>1
+                H(m,a1-1)= g(ph,1)*V(a1)*cos(Th(a1))-b(ph,1)*V(a1)*sin(Th(a1));
             end
-            H(m,i+n-1)=(G(i,j)^2+B(i,j)^2)*(V(i)-V(j)*cos(Th(i)-Th(j)))/h(m);
-            H(m,i+n-1)=(G(i,j)^2+B(i,j)^2)*(V(j)-V(i)*cos(Th(i)-Th(j)))/h(m);
+            H(m,b1-1)= g(ph,2)*V(b1)*cos(Th(b1))-b(ph,2)*V(b1)*sin(Th(b1));
+            H(m,c1-1)= g(ph,3)*V(c1)*cos(Th(c1))-b(ph,3)*V(c1)*sin(Th(c1));
+            H(m,a2-1)=-g(ph,1)*V(a2)*cos(Th(a2))+b(ph,1)*V(a2)*sin(Th(a2));
+            H(m,b2-1)=-g(ph,2)*V(b2)*cos(Th(b2))+b(ph,2)*V(b2)*sin(Th(b2));
+            H(m,c2-1)=-g(ph,3)*V(c2)*cos(Th(c2))+b(ph,3)*V(c2)*sin(Th(c2));
+            %magnitudes
+            H(m,a1+n-1)= g(ph,1)*sin(Th(a1))+b(ph,1)*cos(Th(a1));
+            H(m,b1+n-1)= g(ph,2)*sin(Th(b1))+b(ph,2)*cos(Th(b1));
+            H(m,c1+n-1)= g(ph,3)*sin(Th(c1))+b(ph,3)*cos(Th(c1));
+            H(m,a2+n-1)=-g(ph,1)*sin(Th(a2))-b(ph,1)*cos(Th(a2));
+            H(m,b2+n-1)=-g(ph,2)*sin(Th(b2))-b(ph,2)*cos(Th(b2));
+            H(m,c2+n-1)=-g(ph,3)*sin(Th(c2))-b(ph,3)*cos(Th(c2));
         end
     end
 

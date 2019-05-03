@@ -94,7 +94,7 @@ for k=1:10%length(P(1,:))
     VtruePrim=Vtrue(1:priNodes);%getting the primary nodes voltages
     disp("initial error: "+ sqrt(1/99*sum(abs(VtruePrim-repmat([1,exp(-2*pi*1i/3),exp(-4*pi*1i/3)],1,33)).^2)))
     VdelayedPrim=Vdelayed(1:priNodes)/vBasePri;
-    lineCurrentDelayed(:,3:5)=lineCurrentDelayed(:,3:5)/Ibase;
+    lineCurrentDelayed(:,3:8)=lineCurrentDelayed(:,3:8)/Ibase;
     
     %% adding noise
     sigmaPMU=.01*.05/3;%micro-PMU

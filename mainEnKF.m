@@ -29,8 +29,8 @@ resol=60;%data resolution in sec. we take a PMU reading every resol seconds
 %getting the required load indices for connecting houses to secondary nodes
 %and getting predicted loads for the next day
 delay=0;%number of semples that PMU data is taking to be processed and communicated to us
-[P,Q,delayedP,delayedQ,PpMean,PpStd,QpMean,QpStd,PdiffStd,QdiffStd,Ppsi,Qpsi]=loadProcessAssignHalf1ph(Pref,secNodes,dur,resol,delay);
-% load('LoadFactor2Delay0Resol60')
+% [P,Q,delayedP,delayedQ,PpMean,PpStd,QpMean,QpStd,PdiffStd,QdiffStd,Ppsi,Qpsi]=loadProcessAssignHalf1ph(Pref,secNodes,dur,resol,delay);
+load('LoadDataFactor2Delay0Resol60Dur3600')
 
 %% perunit values
 sBase=100e3/3; %single phase power base
@@ -39,6 +39,7 @@ vBaseSec=.416/sqrt(3); %single phase secondary network voltage base
 yBase=sBase/vBasePri^2;
 priNodes=33*3; %all 3 phases
 Y=Y/yBase;
+Ibase=sBase/vBasePri;
 % secNodes=32*110;
 
 %% initialization
@@ -63,7 +64,7 @@ MSE_EKF=zeros(1,length(P(1,:)));
 MSE_PMU=zeros(1,length(P(1,:)));
 
 %% main loop
-for k=1:100%length(P(1,:))
+for k=1:10%length(P(1,:))
     disp("hour: "+ k);
     %% setting up OpenDSS
     text = pwd;%current path
@@ -75,8 +76,8 @@ for k=1:100%length(P(1,:))
         error('Fatal error!\n Failed to create the COM object to interface with OpenDSS');
     end
     %% Running the power flow
-    [Vtrue, linePowerTransfer, truePower, transPowerTransfer]=runPFfull(DSSObj,P(:,k),Q(:,k));
-    [Vdelayed, ~, ~, ~]=runPFfull(DSSObj,delayedP(:,k),delayedQ(:,k));
+    [Vtrue, lineCurrent, ~, ~]=runPFfull(DSSObj,P(:,k),Q(:,k));
+    [Vdelayed, lineCurrentDelayed, ~, ~]=runPFfull(DSSObj,delayedP(:,k),delayedQ(:,k));
 
     % calculating load power at each primary bus
     % method 1: adding the load powers together
@@ -93,6 +94,7 @@ for k=1:100%length(P(1,:))
     VtruePrim=Vtrue(1:priNodes);%getting the primary nodes voltages
     disp("initial error: "+ sqrt(1/99*sum(abs(VtruePrim-repmat([1,exp(-2*pi*1i/3),exp(-4*pi*1i/3)],1,33)).^2)))
     VdelayedPrim=Vdelayed(1:priNodes)/vBasePri;
+    lineCurrentDelayed(:,3:5)=lineCurrentDelayed(:,3:5)/Ibase;
     
     %% adding noise
     sigmaPMU=.01*.05/3;%micro-PMU
@@ -105,18 +107,24 @@ for k=1:100%length(P(1,:))
     % calculate the max angle difference
     Vnoisy=VdelayedPrim+rdnV;%adding total vector error
 %     VnoisyAngleDiff=max(angle(Vnoisy)-angle(VdelayedPrim));
+    %adding noise to current readings
+    rdnI=sigmaPMU/sqrt(2)*randn(2*32,6);
+    lineCurrentNoisy=lineCurrentDelayed(:,1:2);
+    lineCurrentNoisy(:,3:8)=0;
+    lineCurrentNoisy(:,3:8)=lineCurrentDelayed(:,3:8).*(1+rdnI);
+
     %covariance matrix of the error
-    R=diag([PpStd(:,ceil(k*resol/dur)).'.^2,QpStd(:,ceil(k*resol/dur)).'.^2,sigmaPMU^2*ones(1,3*2*length(PMUnodes)-1)]);%measurement error cov. matrix
-%     Vnoisy=VtruePrim.*(1+rdnV);%adding noise just to magnitude
+    R=diag([PpStd(:,ceil(k*resol/dur)).'.^2,QpStd(:,ceil(k*resol/dur)).'.^2,...%Pseudo measurements
+        sigmaPMU^2*ones(1,3*2*length(PMUnodes)-1),...%PMU voltage measurement
+        sigmaPMU^2*ones(1,3*2*length(PMUnodes))]);%PMU current measurement
     
-    linePowerTransferNoisy=[];
     %error if we had PMUs at all nodes
     MSE_PMU(k)=(1/99*sum(abs(VtruePrim-Vnoisy).^2));
     
     
     %% Defining measurement data for WLS SE
     % [z,zType]=getMeasurements(Vtrue, linePowerTransfer, PseudoLoadPower);%for testing the accuracy of WLS method without any noise
-    [z,zType]=getMeasurements(Vnoisy, linePowerTransferNoisy, PseudoLoadPower, PMUnodes);%WLS with noisy data
+    [z,zType]=getMeasurements(Vnoisy, lineCurrentNoisy, PseudoLoadPower, PMUnodes);%WLS with noisy data
     
     %% performing WLS SE
     iter_max=10;

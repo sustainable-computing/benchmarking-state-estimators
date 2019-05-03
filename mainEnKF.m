@@ -185,23 +185,25 @@ for k=1:10%length(P(1,:))
     Xu=Xp+K*(Ddelta-Hdelta*Xp);
     
     %% PMU assimilation
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %PMU voltage phasor assimilation
     PMUnodes1ph=sort([3*PMUnodes-2,3*PMUnodes-1,3*PMUnodes]);
-    z_pmu=[abs(Vnoisy(PMUnodes1ph))';angle(Vnoisy(PMUnodes1ph))'];
+    z_pmu=[abs(Vnoisy(PMUnodes1ph))';angle(Vnoisy(PMUnodes1ph))';z];
     % PMU ensemble
 %     Z=z_pmu+sigmaPMU*randn(length(z_pmu),L);
-    rdnZ=sigmaPMU*randn(length(PMUnodes1ph),L);
+    rdnZV=sigmaPMU*randn(length(PMUnodes1ph),L);
     for ll=1:L
         for rr=1:length(PMUnodes1ph)
             alpha=rand*2*pi;
-            rdnZ(rr,ll)=rdnZ(rr,ll)*(cos(alpha)+1i*sin(alpha));
+            rdnZV(rr,ll)=rdnZV(rr,ll)*(cos(alpha)+1i*sin(alpha));
         end
     end
-    Zrand=Vnoisy(PMUnodes1ph).'+rdnZ;
+    Zrand=Vnoisy(PMUnodes1ph).'+rdnZV;
     Z=[abs(Zrand);angle(Zrand)];
-    % now we need to do a load flow for each ensemble of Xk
+    % now we need to do a load flow for each ensemble of Xu
     for l=1:L
         %load flow
-        Vxl=runPF(DSSObj,Xu(1:length(PpMean(:,1)),l),Xu(length(PpMean(:,1))+1:end,l));
+        [Vxl,Ixl]=runPF(DSSObj,Xu(1:length(PpMean(:,1)),l),Xu(length(PpMean(:,1))+1:end,l));
         Vxl=Vxl/vBasePri;
         hX(:,l)=[abs(Vxl(PMUnodes1ph))';angle(Vxl(PMUnodes1ph))'];
     end
@@ -217,6 +219,34 @@ for k=1:10%length(P(1,:))
         ((H_hat*X_hat-E_HX)*(H_hat*X_hat-E_HX).'+(Z-E_Z)*(Z-E_Z).')^-1;
     %Calculating Xa at iteration k
     Xa=Xu+K*(Z-H_hat*X_hat);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %PMU Current phasor assimilation
+    PMUCurrentMap=[1,2:2:64];
+    PMU_Iidx=PMUCurrentMap(PMUnodes);
+    ZI_PMU=[lineCurrentNoisy(PMU_Iidx,3:2:7);lineCurrentNoisy(PMU_Iidx,4:2:8)];
+    ZI_PMU=reshape(ZI_PMU.',[],1);
+    Z=ZI_PMU.*(1+sigmaPMU/sqrt(2)*randn(length(ZI_PMU),L));
+    % now we need to do a load flow for each ensemble of Xa
+    for l=1:L
+        %load flow
+        [Vxl,Ixl]=runPF(DSSObj,Xa(1:length(PpMean(:,1)),l),Xa(length(PpMean(:,1))+1:end,l));
+        Ixl(:,3:8)=Ixl(:,3:8)/Ibase;
+        Ixl_PMU=[Ixl(PMU_Iidx,3:2:7);Ixl(PMU_Iidx,4:2:8)];
+        hX(:,l)=reshape(Ixl_PMU.',[],1);
+    end
+    %Augmented ensemble X_hat
+    X_hat=[Xa;hX];
+    %defining H_hat
+    H_hat=[zeros(2*length(PMUnodes1ph),2*length(PpMean(:,1))),diag(ones(1,2*length(PMUnodes1ph)))];
+    %calculating Kalman Filter K
+    E_X=mean(Xa,2);
+    E_HX=mean(H_hat*X_hat,2);
+    E_Z=mean(Z,2);
+    K=(Xa-E_X)*(H_hat*X_hat-E_HX).'*...
+        ((H_hat*X_hat-E_HX)*(H_hat*X_hat-E_HX).'+(Z-E_Z)*(Z-E_Z).')^-1;
+    %Calculating Xa at iteration k
+    Xa=Xa+K*(Z-H_hat*X_hat);
+    
     %% replacing X_k with Xa_k
     X(:,:)=Xa;
     %averaging the ensemble

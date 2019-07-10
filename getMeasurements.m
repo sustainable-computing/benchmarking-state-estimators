@@ -1,4 +1,4 @@
-function [z,zType]=getMeasurements(Vnoisy, Inoisy, loadPower, PMUnodes)
+function [z,zType]=getMeasurements(Vnoisy, Inoisy, loadPower, PMUnodes, currentPhasor)
 %measurements
 %Load power
 z=loadPower(:,2);%real powers of the nodes
@@ -32,25 +32,27 @@ zTypeAdd(:,2)=(PMUnodes1ph(2:end))';
 zTypeAdd(:,3:4)=0;
 zType=[zType;zTypeAdd];
 
-%line current real part
-PMUCurrentMap=[1,2:2:64];%PMU is installed downstream of node 1 and upstream of all the other nodes
-for pm=1:length(PMUnodes)
-    pmu=PMUnodes(pm);
-    z=[z;Inoisy(PMUCurrentMap(pmu),3:2:7).'];
-    zTypeAdd=7*ones(3,1);%each PMU gives 3 real current type7
-    zTypeAdd(:,2:3)=repmat(Inoisy(PMUCurrentMap(pmu),1:2),3,1);
-    zTypeAdd(:,4)=[1;2;3];%phase number
-    zType=[zType;zTypeAdd];
-end
+if currentPhasor == true
+    %line current real part
+    PMUCurrentMap=[1,2:2:64];%PMU is installed downstream of node 1 and upstream of all the other nodes
+    for pm=1:length(PMUnodes)
+        pmu=PMUnodes(pm);
+        z=[z;Inoisy(PMUCurrentMap(pmu),3:2:7).'];
+        zTypeAdd=7*ones(3,1);%each PMU gives 3 real current type7
+        zTypeAdd(:,2:3)=repmat(Inoisy(PMUCurrentMap(pmu),1:2),3,1);
+        zTypeAdd(:,4)=[1;2;3];%phase number
+        zType=[zType;zTypeAdd];
+    end
 
-%line current imaginary part
-for pm=1:length(PMUnodes)
-    pmu=PMUnodes(pm);
-    z=[z;Inoisy(PMUCurrentMap(pmu),4:2:8).'];
-    zTypeAdd=8*ones(3,1);%each PMU gives 3 imaginary current type8
-    zTypeAdd(:,2:3)=repmat(Inoisy(PMUCurrentMap(pmu),1:2),3,1);
-    zTypeAdd(:,4)=[1;2;3];%phase number
-    zType=[zType;zTypeAdd];
+    %line current imaginary part
+    for pm=1:length(PMUnodes)
+        pmu=PMUnodes(pm);
+        z=[z;Inoisy(PMUCurrentMap(pmu),4:2:8).'];
+        zTypeAdd=8*ones(3,1);%each PMU gives 3 imaginary current type8
+        zTypeAdd(:,2:3)=repmat(Inoisy(PMUCurrentMap(pmu),1:2),3,1);
+        zTypeAdd(:,4)=[1;2;3];%phase number
+        zType=[zType;zTypeAdd];
+    end
 end
 
 end

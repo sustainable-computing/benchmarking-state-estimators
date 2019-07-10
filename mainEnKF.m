@@ -1,6 +1,14 @@
 %running the 33 bus system in OpenDss
 clear
 clc
+
+%% parameters for different runs
+delay=1;%number of semples that PMU data is taking to be processed and communicated to us
+currentPhasor = false;%if you want to consider the current phasor readings from PMU
+resol=60;%data resolution in sec. we take a PMU reading every resol seconds
+PMUnumber = 5; %number of installed PMUs
+sigmaPMU=.01*.05/3;%micro-PMU accuracy
+
 %% setting up OpenDSS
 text = pwd;%current path
 dss_path = [text, '\master33Full.dss'];
@@ -30,17 +38,14 @@ Qref=[60;40;80;30;20;100;100;20;20;30;35;35;80;10;20;20;40;40;40;40;40;50;200;20
 
 secNodes=55;%number of load nodes in the secondary power system
 dur=3600;% the pseudo meas. will be available for every dur seconds
-resol=1;%data resolution in sec. we take a PMU reading every resol seconds
 %Assigne load curves to nodes (using ADRES data set)
 %getting the required load indices for connecting houses to secondary nodes
 %and getting predicted loads for the next day
-delay=1;%number of semples that PMU data is taking to be processed and communicated to us
-currentPhasor = false;%if you want to consider the current phasor readings from PMU
-factor=1;
+factor=10;
 % [P,Q,delayedP,delayedQ,PpMean,PpStd,QpMean,QpStd,PdiffStd,QdiffStd,Ppsi,Qpsi]=loadProcessAssignHalf1ph(Pref,secNodes,dur,resol,delay,factor);
 % [P,Q]=loadProcessAssign1ph1Week(Pref,secNodes,dur,resol,delay,factor);
-moosa = 1;
-load('newLoadF10D1R60Dur3600')
+caseName = ['newLoadF10D1R' num2str(resol) 'Dur3600'];
+load(caseName)
 if delay == 0
     delayedP = P;
     delayedQ = Q;
@@ -65,7 +70,7 @@ Ibase=sBase/vBasePri;
 %% initialization
 %assume the following nodes have PMUs
 PMUmap=[1,33,32,31,18,17,30,16,29,15,14,13,28,12,11,10,9,8,27,26,7,6,25,24,5,4,23,3,22,21,20,19,2];
-PMUnodes=sort(PMUmap(1:6));
+PMUnodes=sort(PMUmap(1:PMUnumber+1));
 % PMUnodes=[1,33,18,22,25,12,6,3,29,9,15];
 % PMUnodes=[1,33,18,22,25,6];
 % PMUnodes=[1,33,18,22,25,6,3,31,29,27,20,26,14,12,10,8,4,24,23,4,2];
@@ -87,7 +92,7 @@ MSE_PMU=zeros(1,length(P(1,:)));
 % load('LoadFlowResultsR60.mat');
 
 %% main loop
-for k=1:100%length(P(1,:))
+for k=1:length(P(1,:))
     disp("hour: "+ k);
 %     %% setting up OpenDSS
     text = pwd;%current path
@@ -120,7 +125,6 @@ for k=1:100%length(P(1,:))
     
     
     %% adding noise
-    sigmaPMU=.01*.05/3;%micro-PMU
     rdnV=sigmaPMU*randn(1,length(VtruePrim));%adding noise to magnitude only
     for rr=1:length(rdnV)
         alpha=rand*2*pi;
@@ -305,8 +309,8 @@ disp("Average RMS Error PMU: "+ sqrt(mean(MSE_PMU)));
 disp("Average RMS Error WLS: "+ sqrt(mean(MSE_WLS)));
 disp("Average RMS Error EKF: "+ sqrt(mean(MSE_EKF)));
 
-
-
+runName = ['runF10VI' num2str(currentPhasor) 'D' num2str(delay) 'R' num2str(resol) 'P' num2str(PMUnumber) 'S' num2str(sigmaPMU) '.mat'];
+save(runName, 'MSE_PMU', 'MSE_WLS', 'MSE_EKF')
 
 
 

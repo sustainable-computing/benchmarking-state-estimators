@@ -6,7 +6,7 @@ nNodes=33;
 for ind=2:nNodes
     for ph=1:3 %phase index
         loadNumber=num2str(3*(ind-1)+ph);
-        DSSText.Command = ['Edit Load.' loadNumber ' kW=' num2str(P(ind-1)) ' kvar=' num2str(Q(ind-1))];
+        DSSText.Command = ['Edit Load.' loadNumber ' kW=' num2str(P(3*(ind-2)+ph)) ' kvar=' num2str(Q(3*(ind-2)+ph))];
     end
 end
 

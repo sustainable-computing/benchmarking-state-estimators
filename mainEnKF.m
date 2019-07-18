@@ -42,7 +42,7 @@ dur=3600;% the pseudo meas. will be available for every dur seconds
 %getting the required load indices for connecting houses to secondary nodes
 %and getting predicted loads for the next day
 factor=10;
-% [P,Q,delayedP,delayedQ,PpMean,PpStd,QpMean,QpStd,PdiffStd,QdiffStd,Ppsi,Qpsi]=loadProcessAssignHalf1ph(Pref,secNodes,dur,resol,delay,factor);
+% [P,Q,delayedP,delayedQ,PpMean,PpStd,QpMean,QpStd,PdiffStd,QdiffStd,Ppsi,Qpsi]=loadProcessAssignHalf1ph1(Pref,secNodes,dur,resol,delay,factor);
 % [P,Q]=loadProcessAssign1ph1Week(Pref,secNodes,dur,resol,delay,factor);
 caseName = ['newLoadF10D1R' num2str(resol) 'Dur3600'];
 load(caseName)

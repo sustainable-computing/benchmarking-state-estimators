@@ -25,7 +25,7 @@ vckt = DSSCircuit.YNodeVarray;
 % vckt_len = length(vckt);
 vpri_len=33*3*2;
 V = vckt(1:2:vpri_len)+1i*vckt(2:2:vpri_len);
-
+% vsec = vckt(vpri_len+1:2:end)+1i*vckt(vpri_len+2:2:end);
 loadPower=[];
 transPowerTransfer=[];
 

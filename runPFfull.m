@@ -1,9 +1,9 @@
-function [V, linePowerTransfer, loadPower, transPowerTransfer] = runPFfull(DSSObj,P,Q)
+function [V, lineCurrent, loadPower, transPowerTransfer] = runPFfull(DSSObj,P,Q)
 DSSText=DSSObj.text;
 
 %adjust loads
 nNodes=33;%primary network
-secNodes=55;%secondary network
+% secNodes=55;%secondary network
 for ind=2:nNodes
     for secInd=56:110
         loadIdx=(ind-2)*55+secInd-55;
@@ -25,8 +25,7 @@ vckt = DSSCircuit.YNodeVarray;
 % vckt_len = length(vckt);
 vpri_len=33*3*2;
 V = vckt(1:2:vpri_len)+1i*vckt(2:2:vpri_len);
-
-linePowerTransfer=[];
+% vsec = vckt(vpri_len+1:2:end)+1i*vckt(vpri_len+2:2:end);
 loadPower=[];
 transPowerTransfer=[];
 
@@ -43,18 +42,18 @@ transPowerTransfer=[];
 % end
 
 % get power transfer
-% linePowerTransfer = zeros(DSSCircuit.Lines.count*2,4);
-% Lindex = DSSCircuit.Lines.First();
-% lineCounter = 0;
-% while Lindex ~= 0
-%     lineCounter=lineCounter+1;
-%     EPowers = DSSCircuit.ActiveCktElement.Powers();
-%     linePowerTransfer(2*lineCounter-1,1:2) = [str2double(DSSCircuit.ActiveCktElement.BusNames{1}),str2double(DSSCircuit.ActiveCktElement.BusNames{2})];
-%     linePowerTransfer(2*lineCounter-1,3:4) = 3e3*EPowers([1,2]);
-%     linePowerTransfer(2*lineCounter,1:2) = linePowerTransfer(2*lineCounter-1,[2,1]);
-%     linePowerTransfer(2*lineCounter,3:4) = 3e3*EPowers([7,8]);
-%     Lindex = DSSCircuit.Lines.Next();
-% end
+lineCurrent = zeros(32*2,8);
+Lindex = DSSCircuit.Lines.First();
+lineCounter = 0;
+while Lindex <33
+    lineCounter=lineCounter+1;
+    currents = DSSCircuit.ActiveCktElement.Currents();
+    lineCurrent(2*lineCounter-1,1:2) = [str2double(DSSCircuit.ActiveCktElement.BusNames{1}),str2double(DSSCircuit.ActiveCktElement.BusNames{2})];
+    lineCurrent(2*lineCounter-1,3:8) = currents(1:6);
+    lineCurrent(2*lineCounter,1:2) = lineCurrent(2*lineCounter-1,[2,1]);
+    lineCurrent(2*lineCounter,3:8) = currents(7:12);
+    Lindex = DSSCircuit.Lines.Next();
+end
 
 %get load power
 % loadPower = zeros((nNodes-1)*secNodes,3);%bus number, Pload, Qload
